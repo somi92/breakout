@@ -1,0 +1,509 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+    <title>JavaScript Canvas/Bouncing Ball</title>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+  </head>
+  
+<body>
+<div class='page' style='margin-top:3em; margin-bottom:3em'>
+<h1> Simple physics with HTML5/JavaScript canvas </h1>
+<!-- <div class='cms-ad w-468'>
+  <script type="text/javascript"><!--
+  google_ad_client = "ca-pub-0570916025388963";
+  /* Site CMS */
+  google_ad_slot = "1955348831";
+  google_ad_width = 468;
+  google_ad_height = 60;
+  //-->
+  </script>
+  <!-- <script type="text/javascript"
+  src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+  </script> -->
+</div>
+<div style='text-align:center'>
+  <!-- We have to set the canvas to relative for the layerx/y mouse event 
+    properties to work properly -->
+  <div id='fps' style='text-align:right'>&nbsp;</div>
+  
+  <canvas id="example" width="700" height="500" 
+    style='border:1px solid black; position:relative;'>
+  If you can read this, your browser doesn't support the canvas element. Try
+  <a href="http://www.mozilla.com" target=_blank>Firefox</a>  </canvas>
+</div>
+
+<input type=button id='addobjs' value='Add obstacles'>
+<div id='coord_out'>&nbsp;</div>
+
+<script type='text/javascript'>
+
+//////////////////////////////
+// Simulation variables
+
+var timestep = 0.005;
+// Absolute time at last timestep
+var t0 = 0;
+
+var timer = null; // setInterval return handle.
+var width = $('#example').width(); /// width of canvas 
+var height = $('#example').height(); // height of canvas
+var frame_counter = [0, 0]; // seconds, frames
+
+
+///////////////////////////////
+// Physical variables
+
+// position, velocity and acceleration vectors
+var coords = [0, 0];
+var last_coords = [0, 0];
+var velocity = [0, 0];
+var accel = [0, 0];
+
+// Damping due to impacts
+var bounce_factor = 0.8;
+
+var mass = 1;
+var gravity = 0;
+var radius = 15;
+
+// Forces acting on the ball as array of:
+// [x, y, time]  if time==false, the force is always present.
+// time is a 'time to live', in seconds.
+var forces = [
+  [0, gravity*mass, false],  
+];
+
+// set initial position
+coords = [width/2, radius];  
+
+
+
+/////////////
+// User response related things
+var drag = false;
+var drag_coords = [0, 0];
+var throw_ = false;
+// throw/kick vector
+var throw_coords = [0, 0];
+
+
+var objects = [];
+  
+
+
+function add_objects()
+{
+  objects = [];
+  objects.push(
+ { 
+    points:
+    [       
+      [width, 0], [width-width/4, height]
+    ]
+  });
+  
+  objects.push(
+  { 
+    points:
+    [       
+      [0, height/2], [width/2, height]
+    ]
+  }  
+  );
+  
+  objects.push
+  
+}
+
+
+function get_context()
+{
+  var example = $('#example')[0];
+  return example.getContext('2d');
+}
+
+// Draws the ball.
+function draw()
+{
+  var context = get_context();
+  // clear the canvas
+  context.clearRect(0, 0, width, height);
+  context.save();
+  context.fillStyle = "rgb(0, 0, 255)";
+  
+  // this draws the ball
+  context.beginPath();
+  context.arc(coords[0], coords[1], radius, 0, Math.PI*2, true); 
+  context.closePath();
+  context.fill();
+  context.restore();
+  
+  for (var i=0; i<objects.length; i++)
+  {
+    context.save();
+    
+    var o = objects[i];
+    for (var j=0; j<o.points.length-1; j++)
+    {
+      var p = o['points'][j];      
+      var p1 = o['points'][j+1];
+      context.moveTo( p[0], p[1] );
+      context.lineTo(p1[0], p1[1]);
+      context.stroke();
+
+    }
+    context.restore();
+  }
+  
+  // draw the throw/force vector
+  if (throw_)
+  {
+    context.save();
+    context.moveTo(coords[0], coords[1]);
+    context.lineTo(throw_coords[0], throw_coords[1]); 
+    context.stroke();
+    context.restore();
+  }
+}
+
+
+
+// Moves the ball for the given timestep with the overall force given as 
+// resolved_force.
+// This is a differential equation which we evaluate using Velocity-Verlet 
+// integration,
+// http://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
+function move(dt, resolved_force)
+{  
+  var coords_new = [coords[0] + velocity[0]*dt + 0.5*accel[0]*dt*dt,
+            coords[1] + velocity[1]*dt + 0.5*accel[1]*dt*dt
+            ];
+  // f = ma          
+  var accel_new = [ resolved_force[0]/(mass*dt), 
+    resolved_force[1]/(mass*dt)];
+
+
+  coords = coords_new;
+  
+  velocity = [velocity[0] + 0.5* (accel[0] + accel_new[0])*dt,
+    velocity[1] + 0.5* (accel[1] + accel_new[1])*dt];
+  
+  accel = accel_new;
+    
+}
+
+function sgn(x)
+{
+  return x < 0 ? -1 : 1;
+}
+
+// very simple collision detection and response for rebounding off the walls
+// and applying some damping according to bounce_factor
+function do_collision_detection()
+{
+  if (coords[0] <= radius)
+  {
+    coords[0] = radius;
+    velocity[0] *= -bounce_factor;
+    velocity[1] *= bounce_factor;
+  }
+  
+  if (coords[0] >= width-radius)
+  {
+    coords[0] = width-radius;
+    velocity[0] *= -bounce_factor;
+    velocity[1] *= bounce_factor;
+  }
+  if (coords[1] <= radius)
+  {    
+    coords[1] = radius;
+    velocity[0] *= bounce_factor;
+    velocity[1] *= -bounce_factor;
+  }
+  if (coords[1] > height-radius)
+  {
+    coords[1] = height-radius;  
+    velocity[0] *= bounce_factor;
+    velocity[1]*=-bounce_factor;
+  }  
+  
+  
+  
+  
+  // very primitive collision detection based on line intersection
+  for(var i=0; i<objects.length; i++)
+  {
+    var o = objects[i];
+    for (var j=0; j<o.points.length-1; j++)
+    {
+      var p = o.points[j];
+      var p1 = o.points[j+1];
+      var x1, x2, y1, y2;
+      
+      // http://mathworld.wolfram.com/Circle-LineIntersection.html
+      
+      // we normalise the lines so the circle is at 0,0
+      x1 = p[0] - coords[0];
+      x2 = p1[0] - coords[0];
+      y1 = p[1] - coords[1];
+      y2 = p1[1] - coords[1];
+      var rsq = radius*radius;
+      var d_x = x2 - x1;
+      var d_y = y2 - y1;
+      var d_r_sq = d_x*d_x + d_y*d_y;
+      var D = x1 * y2 - x2 * y1;
+      var Dsq = D*D;
+      var determinant = rsq * d_r_sq - Dsq;
+      
+      // Check if there are solutions (i.e. an intersection)
+      if (determinant >= 0)
+      {
+        
+        // in reality, if we get to here there only MIGHT be an intersection. 
+        // The line intersection check above assumes the line stretches out 
+        // infinitely, so if this is not the case then we'd have to solve a 
+        // pair of quadratics for x and y (see mathworld link) and check 
+        // whether there exist solutions x and y such that x and y are between
+        // the start/end point of our line.
+        // this is omitted for simplicity and lines have been chosen such that
+        // this is not an issue.
+        
+        // if there is an intersection we roll back the coordinates
+        coords[0] = last_coords[0];
+        coords[1] = last_coords[1];
+
+        // and rebound the ball via its velocity.
+        
+        var vx = velocity[0];
+        var vy = velocity[1];
+        var m = Math.sqrt(vx*vx + vy*vy);
+        
+        var veloc_normalised = [vx/m, vy/m];
+        var line_normalised = [d_x/Math.sqrt(d_r_sq), d_y/Math.sqrt(d_r_sq)];
+        
+        // Angle of impact between velocity and line
+        var angle = Math.atan2(line_normalised[1], 
+                               line_normalised[0]) 
+                    - Math.atan2(veloc_normalised[1], 
+                                veloc_normalised[0]);
+        
+        // Angle to reflect/bounce
+        var reflection = Math.PI + angle;
+        // sin^2(x) + cos^2(x) = 1 so this is a normal vector, which we then 
+        // scale up by the velocity's original
+        // magnititude and then scale down according to the 
+        // bounce_factor/damping.
+        velocity[0] = Math.sin(reflection) * m * bounce_factor;
+        velocity[1] = Math.cos(reflection) * m * bounce_factor;
+      }      
+    }
+  }
+}
+
+
+// evaluates the forces array, removes any 'dead' forces, and
+// returns the resolved force for this timestep.
+function do_forces(dt)
+{
+  var resolved = [0,0];
+  var new_forces = [];
+  for (var i=0; i<forces.length; i++)
+  {
+    var f = forces[i];
+
+    if (f[2] !== false)
+      f[2] -= dt;
+
+    resolved[0] += f[0];
+    resolved[1] += f[1];
+    if (f[2] < 0)
+      continue;    
+    new_forces.push(f);
+  }
+  forces = new_forces;
+  return resolved;
+}
+
+// Main loop.
+function main()
+{
+  // calculate time elpased since last run
+  var t1 = new Date().getTime();
+  var dt = t1-t0;  
+  dt /= 1000.0;
+  if (dt < timestep)
+    dt = timestep;
+  
+  frame_counter[0] += dt;
+  frame_counter[1]++;
+  
+  if (frame_counter[0] > 1.0)
+  {
+    frame_counter[0] = 0;
+    $('#fps').html(frame_counter[1] + " frames per second");
+    frame_counter[1] = 0;
+  }
+  
+  t0 = t1;
+  
+  resolved_force = do_forces(dt);
+  move(dt, resolved_force);
+  do_collision_detection();
+  last_coords[0] = coords[0];
+  last_coords[1] = coords[1];
+
+  draw();
+  
+}
+
+// initiates the main loop.
+function go()
+{
+
+  t0 = new Date().getTime();
+  timer = setInterval(main, timestep*1000);
+}
+
+function stop()
+{
+  clearInterval(timer);
+  timer = null;
+  accel = [0, 0];
+  velocity = [0, 0];
+}
+
+
+////////////////////////////
+/// UI handlers follow.
+
+
+// responds to mouse dragging
+function startdragging(e)
+{
+  // mouse input uses layerX in Firefox/chrome and offsetX in Opera.
+  var x = e.layerX !== undefined? e.layerX : e.offsetX;
+  var y = e.layerY !== undefined? e.layerY : e.offsetY;
+  
+  if (e.which == 1)
+  {
+    if (x >= coords[0]-radius && x <= coords[0] + radius
+      &&
+      y >= coords[1]-radius && y <= coords[1] + radius
+      )
+    {
+      drag = true;
+      drag_coords = [x, y];
+    }
+
+  } 
+  else if (e.which == 3)
+  {
+    throw_ = true;
+    throw_coords = [x, y];
+  }
+  
+  if (drag || throw_)
+    stop();
+  
+  return false;
+}
+
+$('#example').mousedown(startdragging);
+$('#example').click(function(e) { return false });
+
+// Disable rightclick so that we can use the right button as input on the 
+// canvas
+$('#example').bind("contextmenu", function(e) { return false });
+
+// called every time the mouse is moved, deals with dragging of the ball
+// and throw vectors
+$('#example').mousemove( function (e) {
+  
+  var x = e.layerX !== undefined? e.layerX : e.offsetX;
+  var y = e.layerY !== undefined? e.layerY : e.offsetY;
+  
+  
+//   $('#coord_out').html( x + ", " + y);
+  if (!drag && !throw_)
+    return;
+  
+  if (throw_)
+    throw_coords = [x, y];
+  
+  else if (drag)
+  {
+    coords = [x, y];
+    
+    var dx, dy;
+    dx = x - drag_coords[0];
+    dy = y - drag_coords[1];
+    var dt = timestep;
+    // scale this down a bit or it seems like the user has super-strength
+    velocity = [dx/dt*0.2, dy/dt * 0.2];
+    drag_coords = [x, y];
+    
+  }
+  
+  draw();
+  return false;  
+});
+
+// Releases the drag event.
+$('#example').mouseup( function (e) {
+  
+  if (!drag && !throw_)
+    return;
+  
+  if (throw_)
+  {
+    var x = e.layerX !== undefined? e.layerX : e.offsetX;
+    var y = e.layerY !== undefined? e.layerY : e.offsetY;
+  
+    // give it a bit more oomph.
+    var scale = 10;
+    var throw_vector_x = (coords[0]-x)*scale;
+    var throw_vector_y = (coords[1]-y)*scale;
+    forces.push( [throw_vector_x, throw_vector_y, 0.10] );
+    throw_ = false;
+    drag = false;
+  }
+  else if (drag)
+    drag = false;
+  
+  go();
+  
+  return false;                      
+});
+
+
+
+
+
+function add_objects_handler()
+{
+  add_objects();
+  draw();
+  
+  $('#addobjs').val('Remove obstacles').click(remove_objects_handler);
+  
+}
+
+function remove_objects_handler()
+{
+  objects = [];
+  draw();
+  $('#addobjs').val('Add obstacles').click(add_objects_handler);
+
+}
+
+$('#addobjs').click(add_objects_handler);
+
+draw();
+
+</script>
+
+</div>
+</body>
+</html>
+

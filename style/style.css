@@ -1,0 +1,19 @@
+canvas {
+	position: absolute;
+	width: 600px;
+	height: 360px;
+	border: 1px red solid;
+	margin: auto;
+	background-color: yellow;
+	top: 10px;
+	left: 10px;
+}
+
+#display {
+	z-index: -2;
+}
+
+#ball {
+	z-index: -1;
+	background: transparent;
+}
