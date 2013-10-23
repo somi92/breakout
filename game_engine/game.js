@@ -1,16 +1,4 @@
-var canvasBg;
-var contextBg;
-
-var canvasBall;
-var contextBall;
-
-var ball;
-var pad;
-// var ball = new Ball();
-// var x = 10;
-// var y = 10;
-// var dx = 2;
-// var dy = 2;
+var game = new GamePlay();
 
 function Drawable() {
 	
@@ -26,48 +14,70 @@ function Drawable() {
 
 function Ball() {
 	
-	this.dx = 2;
-	this.dy = 2;
+	var dx = 2;
+	var dy = 2;
+	
+	var radius = 5;
 	
 	this.draw = function() {
-		
-		// drawPad();
-	
-		contextBall.beginPath();
-		// contextBall.clearRect(this.x-5-3,this.y-5-3,5*2+6,5*2+6);
-		contextBall.clearRect(0,0,canvasBall.width,canvasBall.height);
-		contextBall.closePath();
 
-		contextBall.beginPath();
-		contextBall.fillStyle = "#0000ff";
-		contextBall.arc(this.x, this.y, 5, 0, Math.PI*2, true);
-		contextBall.closePath();
-		contextBall.fill();
-	
-		if(this.x<0 || this.x>300)
-			this.dx = -this.dx;
-		if(this.y<0 || this.y>150)
-			this.dy = -this.dy;
-			
-		// if((this.x+5)>pad.x && (this.x+5)<(pad.x+50) && (this.y+5)>pad.y && (this.y+5)<(pad.y+10)) {
-			// // this.dx = -this.dx;
-			// this.dy = -this.dy;
-		// }
+		// contextBall.beginPath();
+		// contextBall.clearRect(0,0,canvasBall.width,canvasBall.height);
+		// contextBall.closePath();
+// 
+		// contextBall.beginPath();
+		// contextBall.fillStyle = "#0000ff";
+		// contextBall.arc(this.x, this.y, radius, 0, Math.PI*2, true);
+		// contextBall.closePath();
+		// contextBall.fill();
 		
-		if((this.x+5)>pad.x && (this.x-5)<(pad.x+50) && (this.y+5)>pad.y) {
-			// this.dx = -this.dx;
-			this.dy = -this.dy;
+		this.context.beginPath();
+		this.context.clearRect(0,0,this.canvas.width,this.canvas.height);
+		this.context.closePath();
+
+		this.context.beginPath();
+		this.context.fillStyle = "#0000ff";
+		this.context.arc(this.x, this.y, radius, 0, Math.PI*2, true);
+		this.context.closePath();
+		this.context.fill();
+		
+		// alert("!");
+		
+		if(this.x<0 || this.x>300)
+			dx = -dx;
+		if(this.y<0 || this.y>150)
+			dy = -dy;
+		
+		if((this.x+radius)>pad.x && (this.x-radius)<(pad.x+50) && (this.y+radius)>pad.y && (this.y-radius)<(pad.y+10)) {
+			// // this.dx = -this.dx;
+			dy = -dy;
+		} 
+		
+		if(this.y>(pad.y-2) && this.y<(pad.y+12) && (this.x+radius)>pad.x && (this.x-radius)<(pad.x+50)) {
+			dx = -dx;
 		}
 		
-		// if((this.x-5)>pad.x && (this.x-5)<(pad.x+50) && (this.y-5)<(pad.y+10)) {
-			// this.dy = -this.dy;
-		// }
+		// alert("!");
 		
-		this.x += this.dx;
-		this.y += this.dy;
+		
+		// this.ballTop = this.y-radius;
+		// this.ballBottom = this.y+radius;
+		// this.ballLeft = this.x-radius;
+		// this.ballRight = this.x+radius;
+// 		
+		// this.padTop = pad.y;
+		// this.padBottom = pad.y+10;
+		// this.padLeft = pad.x;
+		// this.padRight = pad.x+50;
+		
+		this.x += dx;
+		this.y += dy;
+		// alert("!");
 	};
 	
 }
+
+Ball.prototype = new Drawable();
 
 KEY_CODES = {
   
@@ -100,96 +110,110 @@ document.onkeyup = function(e) {
   	}
 };
 
-Ball.prototype = new Drawable();
-
-
 function Pad() {
 	
-	this.hSpeed = 5;
+	var hSpeed = 5;
+	this.padWidth = 50;
+	this.padHeight = 10;
 	
 	this.draw = function() {
 		
-		contextBg.clearRect(0,0,canvasBg.width,canvasBg.height);
-		contextBg.fillRect(this.x,this.y,50,10);
+		// alert("!");
+		
+		this.context.clearRect(0,0,this.canvas.width,this.canvas.height);
+		this.context.fillStyle = "#ffffff";
+		this.context.fillRect(this.x,this.y,this.padWidth,this.padHeight);
+		
 	};
 	
 	this.move = function() {
 		if(KEY_STATUS.left || KEY_STATUS.right) {
-			contextBg.clearRect(0,0,canvasBg.width,canvasBg.height);
+			this.context.clearRect(0,0,this.canvas.width,this.canvas.height);
 			
 			if(KEY_STATUS.left) {
-        		this.x -= this.hSpeed;
-        	if (this.x <= 0) // Keep player within the screen
+        		this.x -= hSpeed;
+        	if (this.x <= 0)
           		this.x = 0;
       		} else if (KEY_STATUS.right) {
-        		this.x += this.hSpeed;
-        	if (this.x >= 300-50)
-          		this.x = 300 - 50;
+        		this.x += hSpeed;
+        	if (this.x >= 300-this.padWidth)
+          		this.x = 300 - this.padWidth;
       		}
+      		this.draw();
 		}
-		this.draw();
 	};
 }
 
 Pad.prototype = new Drawable();
 
-// function draw() {
+// function animate() {
 // 	
-	// // drawPad();
-// 	
-	// context.beginPath();
-	// context.clearRect(x-5-3,y-5-3,5*2+6,5*2+6);
-	// context.closePath();
-// 
-	// context.beginPath();
-	// context.fillStyle = "#0000ff";
-	// context.arc(x,y,5,0,Math.PI*2,true);
-	// context.closePath();
-	// context.fill();
-// 	
-	// if(x<0 || x>300)
-		// dx = -dx;
-	// if(y<0 || y>150)
-		// dy = -dy;
-// 	
-	// x += dx;
-	// y += dy;
+	// ball.draw();
+	// pad.draw();
+	// pad.move();
 // }
 
+function GamePlay() {
 
+	var ball;
+	var pad;
 
+	this.setUpGame = function() {
+		
+		this.canvasBg = document.getElementById('display');
+		this.contextBg = this.canvasBg.getContext('2d');
+	
+		this.canvasBall = document.getElementById('ball');
+		this.contextBall = this.canvasBall.getContext('2d');
+		
+		Ball.prototype.canvas = this.canvasBall;
+		Ball.prototype.context = this.contextBall;
+		
+		Pad.prototype.canvas = this.canvasBg;
+		Pad.prototype.context = this.contextBg;
+	
+		ball = new Ball();
+		ball.initialize(10,10);
+	
+		pad = new Pad();
+		pad.initialize(120,80);
+		
+		// alert("!");
+		
+	};
+	
+	
+	var animate = function() {
+		ball.draw();
+		// alert("!");
+		pad.draw();
+		// alert("!");
+		pad.move();
+		// alert("!");
+	};
+	
+	this.startGame = function() {
+		setInterval(function(){animate();},2000);
+		// setInterval(animate(),30);
+	};
+	
+}
 
 function init() {
 	
-	canvasBg = document.getElementById('display');
-	contextBg = canvasBg.getContext('2d');
-	
-	canvasBall = document.getElementById('ball');
-	contextBall = canvasBall.getContext('2d');
-	
-	// this.ball = new Ball();
-	// this.ball.initialize(10,10);
-	ball = new Ball();
-	ball.initialize(10,10);
-	
-	pad = new Pad();
-	pad.initialize(120,140);
-
-	// setInterval(draw,10);
-	
-	// setInterval(function(){this.ball.draw();},10);
-	setInterval(function(){animate();},20);
-}
-
-function animate() {
-	
-	// this.ball = new Ball();
-	// this.ball.initialize(10,10);
-	
-	ball.draw();
-	pad.draw();
-	pad.move();
-}
-// function movePad() {
+	// canvasBg = document.getElementById('display');
+	// contextBg = canvasBg.getContext('2d');
 // 	
-// }
+	// canvasBall = document.getElementById('ball');
+	// contextBall = canvasBall.getContext('2d');
+// 	
+	// ball = new Ball();
+	// ball.initialize(10,10);
+// 	
+	// pad = new Pad();
+	// pad.initialize(120,80);
+	
+	// setInterval(function(){animate();},30);
+	game.setUpGame();
+	game.startGame();
+}
